@@ -1,0 +1,22 @@
+{
+	"name": "select.tui",
+	"version": "0.1.0",
+	"description": "Select.js templates for OpenTUI",
+	"type": "module",
+	"main": "./src/js/select/tui/index.js",
+	"exports": {
+		".": "./src/js/select/tui/index.js",
+		"./tui": "./src/js/select/tui/index.js",
+		"./package.json": "./package.json"
+	},
+	"scripts": {
+		"test": "bun test tests",
+		"example:counter": "bun examples/counter.js",
+		"example:counter-markup": "bun examples/counter-markup.js",
+		"example:login": "bun examples/login.js"
+	},
+	"dependencies": {
+		"@opentui/core": "^0.5.9",
+		"select": "./deps/selectjs"
+	}
+}
