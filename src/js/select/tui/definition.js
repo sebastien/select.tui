@@ -11,20 +11,22 @@
 // Concepts:
 // - *component definition*: the unbound object built by `ui.component(name)`.
 // - *binding*: `.using(source)` applies the definition to a `ui()` template.
+// - *aliases*: `componentName`/`doCleanup` are canonical (select.js);
+//   `name`/`cleanup` are kept in sync for compatibility.
 
+import {
+	createDescriptorState,
+	mergeDescriptorBehavior,
+	mergeDescriptorSub,
+	setDescriptorCleanup,
+} from "./descriptor.js";
 import { applyDefinition } from "./template.js";
 
 // Function: createDefinition
 // Logic-only component: chainable `.init/.does/.cleanup`, renderable only
 // after `.using(source)` binds it to a template.
 function createDefinition(name = null) {
-	const definition = {
-		name,
-		behavior: {},
-		subs: undefined,
-		cleanup: null,
-		initializer: null,
-	};
+	const definition = createDescriptorState(name);
 
 	function unbound() {
 		throw new Error(
@@ -36,47 +38,58 @@ function createDefinition(name = null) {
 	unbound.isComponentDefinition = true;
 	unbound.template = null;
 	unbound.definition = definition;
+	// Function: unbound.init
+	// Sets the pending initializer; applied to the template on `.using()`.
 	unbound.init = (initializer) => {
 		definition.initializer = initializer;
 		return unbound;
 	};
+	// Function: unbound.does
+	// Merges pending behavior; applied to the template on `.using()`.
 	unbound.does = (behavior) => {
-		definition.behavior = Object.assign(definition.behavior, behavior);
+		mergeDescriptorBehavior(definition, behavior);
 		return unbound;
 	};
+	// Function: unbound.sub
 	// Subscribes to events published by child components; same contract as
 	// select.js `template.sub(event, handler)` / `.sub({ Event: handler })`.
 	unbound.sub = (event, handler = undefined) => {
-		if (typeof event === "string") {
-			if (!handler) {
-				return unbound;
-			}
-			definition.subs = definition.subs ?? new Map();
-			if (definition.subs.has(event)) {
-				definition.subs.get(event).push(handler);
-			} else {
-				definition.subs.set(event, [handler]);
-			}
-		} else {
-			for (const name in event) {
-				unbound.sub(name, event[name]);
-			}
-		}
+		mergeDescriptorSub(definition, event, handler);
 		return unbound;
 	};
+	// Function: unbound.on
+	// Alias of `unbound.sub`.
 	unbound.on = unbound.sub;
+	// Function: unbound.cleanup
+	// Sets the pending dispose handler (both `doCleanup`/`cleanup` aliases).
 	unbound.cleanup = (handler) => {
-		definition.cleanup = handler;
+		setDescriptorCleanup(definition, handler);
 		return unbound;
 	};
+	// Function: unbound.using
+	// Binds the definition to `source` and returns a renderable component.
 	unbound.using = (source) => applyDefinition(definition, source);
-	unbound.map = () => {
+	// Function: unbound.map
+	// Throws until `.using()` binds the definition (mirrors select.js).
+	unbound.map = (..._args) => {
 		throw new Error(
-			`ui.component(${JSON.stringify(name)}): call .using(...) before .map(...)`,
+			`ui.component(${JSON.stringify(name)}): definition is not bound to a template; call .using(...) before .map(...)`,
 		);
 	};
-	unbound.new = unbound;
-	unbound.apply = unbound;
+	// Function: unbound.new
+	// Throws until `.using()` binds the definition (mirrors select.js).
+	unbound.new = (..._args) => {
+		throw new Error(
+			`ui.component(${JSON.stringify(name)}): definition is not bound to a template; call .using(...) before .new(...)`,
+		);
+	};
+	// Function: unbound.apply
+	// Throws until `.using()` binds the definition (mirrors select.js).
+	unbound.apply = (..._args) => {
+		throw new Error(
+			`ui.component(${JSON.stringify(name)}): definition is not bound to a template; call .using(...) before .apply(...)`,
+		);
+	};
 	return unbound;
 }
 

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { cell, unwrap } from "select/state/cells";
-import { markup } from "../src/js/select/tui/markup.js";
 import { testRender, ui } from "../src/js/select/tui/index.js";
+import { markup } from "../src/js/select/tui/markup.js";
 
 describe("markup", () => {
 	test("builds the same tree shape as HTML", () => {

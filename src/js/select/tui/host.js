@@ -4,10 +4,15 @@
 // Created: 2026-08-31
 
 // Module: select/tui/host
-// Renderer lifecycle: `render` and `testRender`.
+// Renderer lifecycle: `render` and `testRender` for OpenTUI.
+// TUI-only (no select.js counterpart): owns or reuses a CLI renderer,
+// mounts the instance, and disposes on renderer destroy.
 
 import { createCliRenderer } from "@opentui/core";
+import { isAppliedTemplate } from "./applied.js";
 
+// Function: isCliRenderer
+// True when `value` looks like an owned OpenTUI CLI renderer.
 function isCliRenderer(value) {
 	return (
 		value !== null &&
@@ -18,6 +23,10 @@ function isCliRenderer(value) {
 	);
 }
 
+// Function: render
+// Mounts a template component (or an applied `Component(data)` wrapper) onto
+// a new or existing CLI renderer and returns the instance. Owned renderers
+// are destroyed via `instance.quit()`; external renderers are left alive.
 async function render(Component, rendererOrConfig) {
 	const existing = isCliRenderer(rendererOrConfig);
 	const renderer = existing
@@ -29,7 +38,12 @@ async function render(Component, rendererOrConfig) {
 					: null),
 			});
 	try {
-		const instance = Component.new();
+		// Accept a template component (`ui(source)`) or an applied wrapper
+		// (`Component(data)`), mirroring select.js where the callable returns
+		// a wrapper. Wrappers mount via their template with the wrapper data.
+		const instance = isAppliedTemplate(Component)
+			? Component.template.new(null, { data: Component.data })
+			: Component.new();
 		if (!existing) {
 			instance._ownedRenderer = renderer;
 		}
@@ -44,6 +58,10 @@ async function render(Component, rendererOrConfig) {
 	}
 }
 
+// Function: testRender
+// Mounts onto an OpenTUI test renderer; returns the setup plus `instance`.
+// Accepts a component or an applied wrapper; explicit `{ data }` overrides
+// wrapper data.
 async function testRender(Component, options = {}) {
 	const { data, ...testOptions } = options;
 	// Imported lazily so the production entry does not pull in the test helpers.
@@ -54,10 +72,12 @@ async function testRender(Component, options = {}) {
 		...testOptions,
 	});
 	try {
-		const instance = Component.new(
-			null,
-			data !== undefined ? { data } : undefined,
-		);
+		const instance = isAppliedTemplate(Component)
+			? Component.template.new(
+					null,
+					data !== undefined ? { data } : { data: Component.data },
+				)
+			: Component.new(null, data !== undefined ? { data } : undefined);
 		instance.mount(setup.renderer.root);
 		setup.renderer.once("destroy", () => instance.dispose());
 		return Object.assign(setup, { instance });

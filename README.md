@@ -65,23 +65,31 @@ or `example:login`.
 ### `ui(source)`
 
 Builds a component from an HTML string or a `markup` tree. The returned function
-is a component factory with a chainable descriptor:
+is a component factory with a chainable descriptor, mirroring select.js
+`createComponent`:
 
-- `ui(source)` — instantiate directly: `Counter()` / `Counter(data)`.
+- `ui(source)` — calling the component returns an applied wrapper:
+  `Counter(data)` / `Counter.apply(data)` → `{ template, data }` (stable per
+  `$key` via `_applyCache`). Mount with `Component.new()` or
+  `render(Component)` / `testRender(Component)`; `render` also accepts a
+  wrapper.
 - `.init((self, data) => state)` — create the component's reactive data. A
   returned object replaces the data; top-level reactive values (cells) are
   subscribed automatically.
 - `.does({ handler: (self, data, event) => result })` — behaviors used by
   `out`/`when`/`on:` bindings. Returning a plain object updates the data.
 - `.cleanup((self, data) => …)` — called once on dispose.
-- `.map(data, processor?, key?)` — map a collection to keyed child instances,
-  rendered by binding the result to an `out` slot. `processor(value, index)`
-  builds each row's data; `key(value, index)` (or a path string) sets its
-  stable `$key`. A focused port of select.js's `Component.map`: it always
-  returns a flat array, so Map/Set/object inputs are flattened to their values
-  in iteration order. Without a `processor`, each item is wrapped as `{ $:
-  item, $key }` (`{ $value: item, $key }` for array items).
-- `.new(parent, options)` / `.apply(data)` — low-level constructors.
+- `.map(data, processor?, key?)` — map a collection to keyed child wrappers,
+  rendered by binding the result to an `out` slot. `processor(value,
+  indexOrKey)` builds each row's data; `key(value, indexOrKey)` (or a path
+  string like `"id"`/`".id"`) sets its stable `$key`. A port of select.js's
+  `UITemplate.map`: it preserves the input container shape via `remap`, so
+  arrays stay arrays, Maps stay Maps, Sets stay Sets and plain objects stay
+  plain objects. Without a `processor`, each item is wrapped as `{ $: item,
+  $key }` (`{ $value: item, $key }` for array items). TUI delta: duplicate
+  keys render as distinct rows (`#index` fallback) instead of collapsing.
+- `.new(parent, options)` — creates a `TUIInstance`; `.apply(data)` — returns
+  an applied wrapper (not an instance).
 
 `ui.markup`, `ui.format`, `ui.unformat`, `ui.formats`, `ui.resolveFormat` expose
 the hyperscript factories and the select.js format registry.
@@ -100,15 +108,17 @@ const Pill = Badge.using(`<box><text out="label"></text></box>`);
 const Card = Badge.using(`<box border><text out="label"></text></box>`);
 ```
 
-`.init/.does/.cleanup/.using/.map` are available; calling an unbound definition
-throws. Both `ui(source)` components and `ui.component(name)` definitions also
-expose `.using(source)` for rebinding. The exported guards
-`isTemplateComponent(value)`, `isComponentDefinition(value)` and
-`isAppliedTemplate(value)` distinguish the three kinds at runtime.
+`.init/.does/.cleanup/.using` are available; `.new/.apply/.map` on an unbound
+definition throw until `.using(source)` binds it (mirroring select.js
+`createDefinitionComponent`). Both `ui(source)` components and
+`ui.component(name)` definitions also expose `.using(source)` for rebinding.
+The exported guards `isTemplateComponent(value)`, `isComponentDefinition(value)`
+and `isAppliedTemplate(value)` distinguish the three kinds at runtime.
 
 ### `Component.map(data, processor?, key?)`
 
-Returns an array of keyed `{ template, data }` wrappers. Bind it to an `out`
+Returns a keyed `{ template, data }` wrapper collection preserving the input
+shape (array, Map, Set or plain object via `remap`). Bind it to an `out`
 slot to render each wrapper as a child instance (reconciled by `$key`):
 
 ```js
@@ -120,6 +130,13 @@ const List = ui(`<box out="rows"></box>`).does({
     Row.map(data.items, (item, index) => ({ item, index }), (item) => item),
 });
 ```
+
+### `Component.apply(data)` / calling `Component(data)`
+
+Returns a single keyed `{ template, data }` wrapper, mirroring select.js
+`UITemplate.apply`: when `data` carries a `$key`, the same wrapper identity is
+reused across calls via `_applyCache`. Bind it to an `out` slot or pass it to
+`render`/`testRender` (which unwrap it); use `.new()` for a direct instance.
 
 ### `ui.load(source)`
 
@@ -147,11 +164,29 @@ Creates an OpenTUI test renderer, mounts the component and returns the renderer
 setup augmented with `instance`. Use `setup.renderOnce()` and
 `setup.captureCharFrame()` in tests.
 
+### Instance
+
+Returned by `render`/`testRender` and `Component.new()`; mirrors select.js
+`UIInstance` lifecycle:
+
+- `set(data)` / `update(patch)` — replace/merge data with cell write-through.
+- `pub(name, payload?)` / `on(event, handler)` / `off(event, handler)` —
+  runtime events bubbling up the parent chain; `sub` handlers come from the
+  template descriptor.
+- `provide(key, value)` / `inject(key, default?)` — ancestor context;
+  reactive cells auto re-render injectors.
+- `effect(setup)` — runs `setup(self)`, tracks a returned teardown for
+  `dispose()`.
+- `quit()` / `dispose()` / `mount(target)` / `unmount()` — renderer-aware
+  teardown and (re)mounting.
+- `id` / `data` / `ref` / `parent` — identity (see `getTUIInstance(id)`),
+  current data bag, `ref="name"` nodes, parent instance.
+
 ### `extend({ tag: Class | { Class, contentProp } | uiComponent })`
 
 Registers additional tags. Passing `null` removes a tag. Built-in tags: `box`,
-`text`, `input`, `scrollbox`. `getCatalogue()` returns the live tag registry
-for advanced introspection.
+`text`, `input`, `scrollbox`. `getTags()` returns the live tag registry
+(`getCatalogue()` is a compatibility alias) for advanced introspection.
 
 ### `markup`
 
@@ -183,6 +218,35 @@ templates (`out="Hello ${name}"`), and comparisons (`out="count>0"`).
 `keypress` handlers are routed to the focused subtree: when a node is focused,
 only handlers on its ancestors (or itself) run; when nothing is focused, all
 handlers run.
+
+## Porting status vs select.js
+
+Aligned (reuse `select.js` directly where possible):
+
+- Binding parsing/eval: `TemplateParser`, `evaluateParsedOut`,
+  `createWhenPredicate`, `inferWhenKeys`, `resolveBindingValue`,
+  `writeDataPath`, `UIEvent`, `unwrap`/`isReactive`, `remap`, `FORMATS`/`format`.
+- Facade: `Component(...args)→apply`, `Component.apply/map/new/using`,
+  `definition.new/apply/map` throw until `.using()`, `_applyCache`/`_mapCache`
+  stable identity, shape-preserving `map`.
+- Instances: `set`/`update` with cell write-through, `on`/`off`/`pub` bubbling,
+  `effect` setup/teardown, `provide`/`inject` ancestor context (reactive
+  cells auto re-render injectors), init-state seeding (construction data
+  survives under `init()` state), `id` registry (`getTUIInstance`).
+- Descriptor: `componentName`/`doCleanup` canonical with `name`/`cleanup`
+  aliases kept in sync.
+
+Intentional TUI subset (not ported):
+
+- Sources: CSS selectors, DOM nodes, `<template>` registries, `#Key`
+  references, JSON/CSS/SVG loads, `<style>` extraction.
+- Templates: `singleton`, `lexicalTemplates`/`localTemplates`, `<slot>`
+  content slots, webcomponents, `Dynamic`/`lazy`/`register`/`resolve`,
+  `componentRootClass`, link interception, `virtual`/`mask`.
+- Instances: `defaultData` host merging, cell fusion, `out-replace` node
+  replacement.
+- Host tags (`catalogue.js#TAGS`) are distinct from `COMPONENTS`: they map
+  TUI renderables (`box`, `text`, `input`, `scrollbox`), not logic components.
 
 ## Development
 

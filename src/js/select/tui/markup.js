@@ -5,9 +5,13 @@
 
 // Module: select/tui/markup
 // Hyperscript tag factories that build the same AST as HTML templates.
+// TUI-only (no select.js counterpart): `markup.box(attrs, ...children)`
+// mirrors JSX-like construction for programmatic templates.
 
 import { parseFragment } from "./parse.js";
 
+// Function: isMarkupNode
+// True for AST element/text nodes.
 function isMarkupNode(value) {
 	return (
 		value !== null &&
@@ -16,6 +20,8 @@ function isMarkupNode(value) {
 	);
 }
 
+// Function: isAttrs
+// True for a plain attribute bag (not a child node/array).
 function isAttrs(value) {
 	return (
 		value !== null &&
@@ -26,6 +32,8 @@ function isAttrs(value) {
 	);
 }
 
+// Function: flatten
+// Flattens nested children; strings become text nodes.
 function flatten(children, out) {
 	for (let i = 0; i < children.length; i++) {
 		const child = children[i];
@@ -49,6 +57,8 @@ function flatten(children, out) {
 	return out;
 }
 
+// Function: element
+// Builds an element AST node from tag/attrs/children.
 function element(tag, attrs, children) {
 	return {
 		type: "element",
@@ -58,6 +68,8 @@ function element(tag, attrs, children) {
 	};
 }
 
+// Function: tagFactory
+// Returns a hyperscript factory for one tag name.
 function tagFactory(tag) {
 	return (attrs, ...rest) => {
 		if (isAttrs(attrs)) {
@@ -67,6 +79,8 @@ function tagFactory(tag) {
 	};
 }
 
+// Function: createMarkup
+// Creates the markup proxy with per-tag memoization.
 function createMarkup() {
 	const tags = new Map();
 	return new Proxy(Object.create(null), {
@@ -86,6 +100,8 @@ function createMarkup() {
 
 const markup = createMarkup();
 
+// Function: toAst
+// Normalizes a string/tree/array source to an AST array.
 function toAst(source) {
 	if (typeof source === "string") {
 		return parseFragment(source);

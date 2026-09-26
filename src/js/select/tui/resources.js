@@ -7,6 +7,10 @@
 // External template sources: `ui.load(url)` fetches, parses and caches a
 // template file, and `astFor(source)` resolves a source string to an AST,
 // preferring a previously loaded resource.
+//
+// Subset of select.js `factory.js` resource flow (intentional): only
+// `.html/.xhtml/.xml` text templates, no `#Key` references, no JSON/CSS/SVG
+// loads; `load` returns the parsed AST (select.js returns a resource object).
 
 import { toAst } from "./markup.js";
 
@@ -15,8 +19,13 @@ const RESOURCES = new Map();
 // Internal: in-flight `ui.load` calls keyed by resolved URL.
 const LOADING = new Map();
 
+// Function: isMarkupSource
+// True for inline markup (AST array or `<...` string), false for URL/paths.
 function isMarkupSource(source) {
-	return Array.isArray(source) || (typeof source === "string" && /^\s*</.test(source));
+	return (
+		Array.isArray(source) ||
+		(typeof source === "string" && /^\s*</.test(source))
+	);
 }
 
 // Function: isResourceReference

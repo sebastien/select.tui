@@ -1,1 +1,0 @@
-select.tui: Select ui()+cells+markup on OpenTUI box/text/input; TemplateParser in select/ui/bindings.js; tui evals pipes/when/@assign/!pub

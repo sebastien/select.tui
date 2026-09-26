@@ -4,7 +4,10 @@
 // Created: 2026-08-31
 
 // Module: select/tui/parse
-// HTML fragment parser for TUI templates.
+// HTML fragment parser for TUI templates. TUI-only (no DOM in Bun):
+// mirrors select.js `HTML.parseFromString + pruneTemplateWhitespace` for the
+// inline-markup subset. Not supported: `<template>` registries, `<style>`
+// extraction, SVG namespaces, case-sensitive tags (tags lowercased).
 
 const ENTITIES = {
 	amp: "&",
@@ -38,6 +41,9 @@ function decodeEntities(text) {
 	});
 }
 
+// Function: parseFragment
+// Parses an HTML fragment string into TUI AST nodes
+// (`{type:"element",tag,attrs,children}` / `{type:"text",value}`).
 function parseFragment(source) {
 	const input = `${source ?? ""}`;
 	let i = 0;
@@ -123,7 +129,10 @@ function parseFragment(source) {
 			while (i < n && input[i] !== "<") {
 				i++;
 			}
-			nodes.push({ type: "text", value: decodeEntities(input.slice(start, i)) });
+			nodes.push({
+				type: "text",
+				value: decodeEntities(input.slice(start, i)),
+			});
 		}
 		return nodes;
 	}

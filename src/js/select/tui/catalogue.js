@@ -4,8 +4,10 @@
 // Created: 2026-08-31
 
 // Module: select/tui/catalogue
-// Tag names to OpenTUI renderable classes (or nested `ui()` components) and
-// attribute coercion.
+// Host-tag registry: tag names to OpenTUI renderable classes (or nested `ui()`
+// components) and attribute coercion. Intentionally distinct from select.js
+// `COMPONENTS` (Dynamic components): this maps TUI host tags (`box`, `text`,
+// `input`, `scrollbox`), not logic components.
 
 import {
 	BoxRenderable,
@@ -60,7 +62,7 @@ const NUMBER_ATTRS = new Set([
 	"zIndex",
 ]);
 
-const catalogue = {
+const TAGS = {
 	box: { Class: BoxRenderable },
 	input: { Class: InputRenderable, contentProp: "value" },
 	scrollbox: { Class: ScrollBoxRenderable },
@@ -68,14 +70,14 @@ const catalogue = {
 };
 
 // Function: extend
-// Registers tags. Values are renderable classes, `{ Class, contentProp? }`
+// Registers host tags. Values are renderable classes, `{ Class, contentProp? }`
 // descriptors, or `ui()` templates (nested components). Passing `null` or
 // `undefined` removes a previously registered tag.
 function extend(components) {
 	for (const name in components) {
 		const value = components[name];
 		if (value === null || value === undefined) {
-			delete catalogue[name];
+			delete TAGS[name];
 			continue;
 		}
 		if (value.isComponentDefinition) {
@@ -84,18 +86,29 @@ function extend(components) {
 			);
 		}
 		if (value.isTemplate) {
-			catalogue[name] = { Component: value };
+			TAGS[name] = { Component: value };
 		} else {
-			catalogue[name] = value.Class ? value : { Class: value };
+			TAGS[name] = value.Class ? value : { Class: value };
 		}
 	}
-	return catalogue;
+	return TAGS;
 }
 
+// Function: getTags
+// Returns the live host-tag registry for advanced introspection.
+function getTags() {
+	return TAGS;
+}
+
+// Function: getCatalogue
+// Compatibility alias of `getTags` (legacy TUI name).
 function getCatalogue() {
-	return catalogue;
+	return TAGS;
 }
 
+// Function: coerceValue
+// Coerces a single host attribute: booleans for `BOOLEAN_ATTRS`, numbers for
+// `NUMBER_ATTRS`, other strings pass through unchanged.
 function coerceValue(name, value) {
 	if (value === true || value === false) {
 		return value;
@@ -118,6 +131,8 @@ function coerceValue(name, value) {
 	return value;
 }
 
+// Function: coerceOptions
+// Coerces an attribute bag via `coerceValue` for OpenTUI construction.
 function coerceOptions(attrs) {
 	const options = {};
 	for (const name in attrs) {
@@ -126,6 +141,6 @@ function coerceOptions(attrs) {
 	return options;
 }
 
-export { coerceOptions, extend, getCatalogue };
+export { coerceOptions, extend, getCatalogue, getTags };
 
 // EOF

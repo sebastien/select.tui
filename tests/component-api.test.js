@@ -86,14 +86,20 @@ describe("ui.component and .using", () => {
 });
 
 describe("Component.map", () => {
-	const Row = ui(`<box flexDirection="row" height="1"><text out="label"></text></box>`).does({
+	const Row = ui(
+		`<box flexDirection="row" height="1"><text out="label"></text></box>`,
+	).does({
 		label: (_self, data) => data.item,
 	});
 
 	test("renders a mapped list through an out slot", async () => {
 		const List = ui(`<box flexDirection="column" out="rows"></box>`).does({
 			rows: (_self, data) =>
-				Row.map(data.items, (item, index) => ({ item, index }), (item) => item),
+				Row.map(
+					data.items,
+					(item, index) => ({ item, index }),
+					(item) => item,
+				),
 		});
 		const setup = await testRender(
 			List.init(() => ({ items: ["alpha", "beta"] })),
@@ -111,10 +117,15 @@ describe("Component.map", () => {
 	test("reconciles adds, removals and reorder by key", async () => {
 		const List = ui(`
 			<box flexDirection="column" out="rows"></box>
-		`).init(() => ({ items: cell(["alpha", "beta"]) }))
+		`)
+			.init(() => ({ items: cell(["alpha", "beta"]) }))
 			.does({
 				rows: (_self, data) =>
-					Row.map(data.items, (item, index) => ({ item, index }), (item) => item),
+					Row.map(
+						data.items,
+						(item, index) => ({ item, index }),
+						(item) => item,
+					),
 			});
 		const setup = await testRender(List, { width: 16, height: 5 });
 		try {
@@ -156,7 +167,11 @@ describe("Component.map", () => {
 			.init(() => ({ items: ["X", "Y"] }))
 			.does({
 				rows: (_self, data) =>
-					Row.map(data.items, (item) => ({ item }), () => "same"),
+					Row.map(
+						data.items,
+						(item) => ({ item }),
+						() => "same",
+					),
 			});
 		const setup = await testRender(List, { width: 16, height: 5 });
 		try {
@@ -203,12 +218,14 @@ describe("Component.map", () => {
 
 	test("skips child updates when mapped data is unchanged", async () => {
 		let labelCalls = 0;
-		const LocalRow = ui(`<box height="1"><text out="label"></text></box>`).does({
-			label: (_self, data) => {
-				labelCalls++;
-				return data.item;
+		const LocalRow = ui(`<box height="1"><text out="label"></text></box>`).does(
+			{
+				label: (_self, data) => {
+					labelCalls++;
+					return data.item;
+				},
 			},
-		});
+		);
 		const List = ui(
 			`<box flexDirection="column"><text out="title"></text><box out="rows"></box></box>`,
 		)
@@ -216,7 +233,11 @@ describe("Component.map", () => {
 			.does({
 				title: (_self, { tick }) => `t${tick}`,
 				rows: (_self, data) =>
-					LocalRow.map(data.items, (item) => ({ item }), (item) => item),
+					LocalRow.map(
+						data.items,
+						(item) => ({ item }),
+						(item) => item,
+					),
 			});
 		const setup = await testRender(List, { width: 16, height: 5 });
 		try {
@@ -257,7 +278,11 @@ describe("Component.map", () => {
 			}))
 			.does({
 				rows: (_self, data) =>
-					MapRow.map(data.items, (item) => ({ item }), (item) => item),
+					MapRow.map(
+						data.items,
+						(item) => ({ item }),
+						(item) => item,
+					),
 			});
 		const setup = await testRender(List, { width: 20, height: 5 });
 		try {
@@ -287,10 +312,13 @@ describe("behavior data contract", () => {
 				return value;
 			},
 		});
-		const setup = await testRender(Parent.init(() => ({ count: cell(5) })), {
-			width: 16,
-			height: 4,
-		});
+		const setup = await testRender(
+			Parent.init(() => ({ count: cell(5) })),
+			{
+				width: 16,
+				height: 4,
+			},
+		);
 		try {
 			await setup.renderOnce();
 			expect(seen).toBe(5);
