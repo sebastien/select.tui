@@ -4,11 +4,13 @@
 // Created: 2026-08-31
 
 // Module: select/tui/catalogue
-// Tag names to OpenTUI renderable classes and attribute coercion.
+// Tag names to OpenTUI renderable classes (or nested `ui()` components) and
+// attribute coercion.
 
 import {
 	BoxRenderable,
 	InputRenderable,
+	ScrollBoxRenderable,
 	TextRenderable,
 } from "@opentui/core";
 
@@ -61,13 +63,26 @@ const NUMBER_ATTRS = new Set([
 const catalogue = {
 	box: { Class: BoxRenderable },
 	input: { Class: InputRenderable, contentProp: "value" },
+	scrollbox: { Class: ScrollBoxRenderable },
 	text: { Class: TextRenderable, contentProp: "content" },
 };
 
+// Function: extend
+// Registers tags. Values are renderable classes, `{ Class, contentProp? }`
+// descriptors, or `ui()` templates (nested components). Passing `null` or
+// `undefined` removes a previously registered tag.
 function extend(components) {
 	for (const name in components) {
 		const value = components[name];
-		catalogue[name] = value.Class ? value : { Class: value };
+		if (value === null || value === undefined) {
+			delete catalogue[name];
+			continue;
+		}
+		if (value.isTemplate) {
+			catalogue[name] = { Component: value };
+		} else {
+			catalogue[name] = value.Class ? value : { Class: value };
+		}
 	}
 	return catalogue;
 }
@@ -80,14 +95,13 @@ function coerceValue(name, value) {
 	if (value === true || value === false) {
 		return value;
 	}
-	if (value === "" && BOOLEAN_ATTRS.has(name)) {
-		return true;
-	}
-	if (value === "true") {
-		return true;
-	}
-	if (value === "false") {
-		return false;
+	if (BOOLEAN_ATTRS.has(name)) {
+		if (value === "" || value === "true") {
+			return true;
+		}
+		if (value === "false") {
+			return false;
+		}
 	}
 	if (
 		typeof value === "string" &&

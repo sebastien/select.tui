@@ -9,11 +9,32 @@
 		"./tui": "./src/js/select/tui/index.js",
 		"./package.json": "./package.json"
 	},
+	"files": [
+		"src/",
+		"README.md",
+		"LICENSE.md"
+	],
 	"scripts": {
 		"test": "bun test tests",
 		"example:counter": "bun examples/counter.js",
 		"example:counter-markup": "bun examples/counter-markup.js",
 		"example:login": "bun examples/login.js"
+	},
+	"keywords": [
+		"tui",
+		"terminal",
+		"opentui",
+		"select.js",
+		"templates"
+	],
+	"author": "Sebastien Pierre <sebastien.pierre@gmail.com>",
+	"license": "BSD-3-Clause",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/sebastien/select.tui.git"
+	},
+	"engines": {
+		"bun": ">=1.1.0"
 	},
 	"dependencies": {
 		"@opentui/core": "^0.5.9",

@@ -29,4 +29,19 @@ describe("parseFragment", () => {
 		expect(kids[1].attrs.inout).toBe("name");
 		expect(kids[1].children.length).toBe(0);
 	});
+
+	test("decodes named and numeric entities in text and attributes", () => {
+		const ast = parseFragment(
+			`<text title="a &amp; b">1 &lt; 2 &#62; 0 &#x27;q&#x27;</text>`,
+		);
+		const text = ast.filter((node) => node.type === "element")[0];
+		expect(text.attrs.title).toBe("a & b");
+		const content = text.children
+			.filter((node) => node.type === "text")
+			.map((node) => node.value)
+			.join("");
+		expect(content).toBe("1 < 2 > 0 'q'");
+		const invalid = parseFragment("<text>&#x110000;</text>")[0];
+		expect(invalid.children[0].value).toBe("&#x110000;");
+	});
 });

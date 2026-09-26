@@ -1,1 +1,3 @@
-deps/selectjs git@github.com:sebastien/select.js.git main b72168cef322f46a134eb39deca9f894be9950d2
+# REPO URL BRANCH COMMIT?
+deps/selectjs git@github.com:sebastien/select.js.git 956d3b5f 2115ebcab0d5968cb0bbbde78709ef62660d09fc
+# EOF

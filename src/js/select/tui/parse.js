@@ -6,6 +6,38 @@
 // Module: select/tui/parse
 // HTML fragment parser for TUI templates.
 
+const ENTITIES = {
+	amp: "&",
+	apos: "'",
+	gt: ">",
+	lt: "<",
+	nbsp: "\u00a0",
+	quot: '"',
+};
+
+// Function: decodeEntities
+// Resolves named and numeric HTML entities in text and attribute values.
+function decodeEntities(text) {
+	if (text.indexOf("&") === -1) {
+		return text;
+	}
+	return text.replace(/&(#x?[0-9a-fA-F]+|[a-zA-Z]+);/g, (match, body) => {
+		if (body[0] === "#") {
+			const hex = body[1] === "x" || body[1] === "X";
+			const code = Number.parseInt(
+				hex ? body.slice(2) : body.slice(1),
+				hex ? 16 : 10,
+			);
+			if (!Number.isFinite(code) || code < 0 || code > 0x10ffff) {
+				return match;
+			}
+			return String.fromCodePoint(code);
+		}
+		const decoded = ENTITIES[body];
+		return decoded !== undefined ? decoded : match;
+	});
+}
+
 function parseFragment(source) {
 	const input = `${source ?? ""}`;
 	let i = 0;
@@ -52,7 +84,7 @@ function parseFragment(source) {
 			if (i < n) {
 				i++;
 			}
-			return value;
+			return decodeEntities(value);
 		}
 		const start = i;
 		while (i < n) {
@@ -69,7 +101,7 @@ function parseFragment(source) {
 			}
 			i++;
 		}
-		return input.slice(start, i);
+		return decodeEntities(input.slice(start, i));
 	}
 
 	function parseNodes() {
@@ -91,7 +123,7 @@ function parseFragment(source) {
 			while (i < n && input[i] !== "<") {
 				i++;
 			}
-			nodes.push({ type: "text", value: input.slice(start, i) });
+			nodes.push({ type: "text", value: decodeEntities(input.slice(start, i)) });
 		}
 		return nodes;
 	}

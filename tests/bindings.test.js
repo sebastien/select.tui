@@ -1,8 +1,12 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, test } from "bun:test";
 import { cell } from "select/state/cells";
 import { testRender, ui } from "../src/js/select/tui/index.js";
 
 ui.format("upper", (value) => `${value ?? ""}`.toUpperCase());
+
+afterAll(() => {
+	ui.unformat("upper");
+});
 
 describe("binding language", () => {
 	test("out processors and when shorthands", async () => {
