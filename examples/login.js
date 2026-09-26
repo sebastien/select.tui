@@ -22,26 +22,25 @@ const Login = ui(`
 		username: cell(""),
 	}))
 	.does({
-		focusedPass: (_self, { focused }) => focused.value === "pass",
-		focusedUser: (_self, { focused }) => focused.value === "user",
-		keys: (_self, { focused }, key) => {
+		focusedPass: (_self, { focused }) => focused === "pass",
+		focusedUser: (_self, { focused }) => focused === "user",
+		keys: (self, { focused }, key) => {
 			if (key.name === "tab") {
-				focused.set(focused.value === "user" ? "pass" : "user");
+				self.update({ focused: focused === "user" ? "pass" : "user" });
 			}
 		},
-		status: (_self, { status }) => `${status.value ?? "idle"}`.toUpperCase(),
+		status: (_self, { status }) => `${status ?? "idle"}`.toUpperCase(),
 		statusFg: (_self, { status }) =>
-			status.value === "success"
+			status === "success"
 				? "green"
-				: status.value === "error"
+				: status === "error"
 					? "red"
 					: "#999",
-		submit: (_self, { username, password, status }) => {
-			status.set(
-				username.value === "admin" && password.value === "secret"
-					? "success"
-					: "error",
-			);
+		submit: (self, { username, password }) => {
+			self.update({
+				status:
+					username === "admin" && password === "secret" ? "success" : "error",
+			});
 		},
 	});
 

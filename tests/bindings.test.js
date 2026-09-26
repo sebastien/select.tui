@@ -25,9 +25,9 @@ describe("binding language", () => {
 				title: cell("hello"),
 			}))
 			.does({
-				hint: (_self, { hint }) => hint.value,
-				ok: (_self, { ok }) => ok.value,
-				title: (_self, { title }) => title.value,
+				hint: (_self, { hint }) => hint,
+				ok: (_self, { ok }) => ok,
+				title: (_self, { title }) => title,
 			});
 		const setup = await testRender(Panel, { width: 20, height: 6 });
 		try {
@@ -58,10 +58,10 @@ describe("binding language", () => {
 				n: cell(0),
 			}))
 			.does({
-				Bump: (_self, data) => {
-					data.n.set(data.n.value + 1);
+				Bump: (self, { n }) => {
+					self.update({ n: n + 1 });
 				},
-				label: (_self, { n }) => `n=${n.value}`,
+				label: (_self, { n }) => `n=${n}`,
 			});
 		const setup = await testRender(App, { width: 16, height: 4 });
 		try {

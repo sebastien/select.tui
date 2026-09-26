@@ -18,6 +18,8 @@
 //   a nested instance under a wrapper box; `in:prop="source"` passes data
 //   (single-segment sources keep their reactivity), events `pub()`ed by the
 //   child bubble to the parent through the instance chain.
+// - *applied lists*: `Component.map(...)` results bound to an `out` slot; each
+//   wrapper renders as a keyed child instance reconciled by `$key`.
 
 import { BoxRenderable, TextRenderable } from "@opentui/core";
 import { unwrap } from "select/state/cells";
@@ -30,6 +32,8 @@ import {
 	writeDataPath,
 } from "select/ui/eval.js";
 import { isReactive } from "select/utils/values.js";
+import { appliedDataEquals, isAppliedTemplate } from "./applied.js";
+import { normalizeCollection, resolveItemPath } from "./collections.js";
 import { coerceOptions, getCatalogue } from "./catalogue.js";
 
 function isPlainObject(value) {
@@ -42,6 +46,29 @@ function isPlainObject(value) {
 
 function isWsText(node) {
 	return node.type === "text" && !`${node.value ?? ""}`.trim();
+}
+
+// Function: unwrapData
+// Returns a view of `data` with top-level reactive cells unwrapped to their
+// plain values, so behavior handlers receive the same shape select.js delivers.
+function unwrapData(data) {
+	if (!data || typeof data !== "object") {
+		return data;
+	}
+	const array = Array.isArray(data);
+	let plain = null;
+	for (const key in data) {
+		const value = data[key];
+		if (isReactive(value)) {
+			if (!plain) {
+				// Arrays must stay arrays: a spread would turn them into plain
+				// objects keyed by index.
+				plain = array ? data.slice() : { ...data };
+			}
+			plain[key] = unwrap(value);
+		}
+	}
+	return plain || data;
 }
 
 // Function: isWithin
@@ -147,25 +174,15 @@ function takeSlots(attrs) {
 // Normalizes a collection (array, Map, Set, object) into
 // `[{ key, item, index }]` rows with deduplicated string keys.
 function normalizeEachEntries(collection, slot) {
-	let pairs;
-	if (Array.isArray(collection)) {
-		pairs = collection.map((item) => [undefined, item]);
-	} else if (collection instanceof Map) {
-		pairs = Array.from(collection.entries());
-	} else if (collection instanceof Set) {
-		pairs = Array.from(collection).map((item) => [undefined, item]);
-	} else if (collection !== null && collection !== undefined && typeof collection === "object") {
-		pairs = Object.entries(collection);
-	} else {
-		return [];
-	}
+	const entries = normalizeCollection(collection);
 	const used = new Set();
-	const rows = new Array(pairs.length);
-	for (let i = 0; i < pairs.length; i++) {
-		// `pairs` follows the [key, value] convention used by `Map.entries()`
-		// and `Object.entries()`, so the map key comes first.
-		const [mapKey, item] = pairs[i];
-		let key = mapKey !== undefined ? mapKey : defaultItemKey(item, i, slot);
+	const rows = new Array(entries.length);
+	for (let i = 0; i < entries.length; i++) {
+		const entry = entries[i];
+		let key =
+			entry.mapKey !== undefined
+				? entry.mapKey
+				: defaultItemKey(entry.value, entry.index, slot);
 		key = typeof key === "string" ? key : `${key}`;
 		if (used.has(key)) {
 			let n = 0;
@@ -176,7 +193,7 @@ function normalizeEachEntries(collection, slot) {
 			key = fallback;
 		}
 		used.add(key);
-		rows[i] = { key, item, index: i };
+		rows[i] = { key, item: entry.value, index: entry.index };
 	}
 	return rows;
 }
@@ -190,15 +207,6 @@ function defaultItemKey(item, index, slot) {
 		return item.name ?? item.id ?? item.key ?? index;
 	}
 	return item;
-}
-
-function resolveItemPath(item, path) {
-	let cursor = item;
-	for (let i = 0; i < path.length; i++) {
-		if (cursor === null || cursor === undefined) return undefined;
-		cursor = cursor[path[i]];
-	}
-	return cursor;
 }
 
 class TUIInstance {
@@ -286,7 +294,7 @@ class TUIInstance {
 	}
 
 	_resolveOut(slot) {
-		return evaluateParsedOut(this, this._scopedData(slot), slot.parsed);
+		return evaluateParsedOut(this, unwrapData(this._scopedData(slot)), slot.parsed);
 	}
 
 	_resolveInValue(sourceKey, scope = null) {
@@ -296,7 +304,10 @@ class TUIInstance {
 		if (!`${sourceKey ?? ""}`.includes(".")) {
 			const behavior = this.template.behavior?.[sourceKey];
 			if (typeof behavior === "function") {
-				return behavior(this, data, null);
+				// Behaviors receive the same unwrapped shape as every other
+				// handler; the plain `data[sourceKey]` fallback still returns
+				// the raw value so single-segment reactive sources pass through.
+				return behavior(this, unwrapData(data), null);
 			}
 			return data[sourceKey];
 		}
@@ -308,7 +319,7 @@ class TUIInstance {
 		if (typeof handler !== "function") {
 			return;
 		}
-		const result = handler(this, data || this.data || {}, event);
+		const result = handler(this, unwrapData(data || this.data || {}), event);
 		if (isPlainObject(result)) {
 			this.update(result);
 		}
@@ -340,7 +351,7 @@ class TUIInstance {
 		node[prop] = next;
 	}
 
-	_create(ast, scope = null, parentNode = null) {
+	_create(ast, scope = null, _parentNode = null) {
 		if (ast.type === "text") {
 			return new TextRenderable(this.ctx, { content: ast.value.trim() });
 		}
@@ -575,6 +586,99 @@ class TUIInstance {
 		return container;
 	}
 
+	// Subsection: applied-template lists (Component.map)
+	//
+	// `Component.map(...)` returns an array of `{ isAppliedTemplate, template,
+	// data }` wrappers. When such an array is bound to an `out` slot, each item
+	// is rendered as a child instance under the slot node, keyed by `$key`.
+
+	_renderAppliedOut(slot, items) {
+		const container = slot.node;
+		if (!slot.applied) {
+			slot.applied = new Map();
+		}
+		const rows = slot.applied;
+		const keep = new Set();
+		const order = new Array(items.length);
+		for (let i = 0; i < items.length; i++) {
+			const item = items[i];
+			const key = item.data?.$key ?? i;
+			keep.add(key);
+			order[i] = key;
+			let row = rows.get(key);
+			if (row && row.template !== item.template) {
+				// Same key but a different component: replace the row instead
+				// of reusing an instance built from a stale template.
+				this._destroyAppliedRow(slot, key);
+				row = null;
+			}
+			if (!row) {
+				const wrapper = new BoxRenderable(this.ctx, {});
+				const instance = item.template.new(this, { data: item.data });
+				row = { instance, wrapper, data: item.data, template: item.template };
+				rows.set(key, row);
+				this._children.push(instance);
+				container.add(wrapper);
+				instance.mount(wrapper);
+			} else if (!appliedDataEquals(row.data, item.data)) {
+				row.instance.update(item.data);
+				row.data = item.data;
+			}
+		}
+		for (const key of Array.from(rows.keys())) {
+			if (!keep.has(key)) {
+				this._destroyAppliedRow(slot, key);
+			}
+		}
+		const previous = slot.order;
+		let reordered = !previous || previous.length !== order.length;
+		if (!reordered) {
+			for (let i = 0; i < order.length; i++) {
+				if (order[i] !== previous[i]) {
+					reordered = true;
+					break;
+				}
+			}
+		}
+		if (reordered) {
+			for (let i = 0; i < order.length; i++) {
+				const row = rows.get(order[i]);
+				container.remove(row.wrapper);
+				container.add(row.wrapper, i);
+			}
+			slot.order = order;
+		}
+	}
+
+	_destroyAppliedRow(slot, key) {
+		const row = slot.applied?.get(key);
+		if (!row) {
+			return;
+		}
+		slot.applied.delete(key);
+		// Evict the component's map-cache entry so long-lived lists do not grow
+		// without bound as keys churn.
+		row.template?._mapCache?.delete(key);
+		const at = this._children.indexOf(row.instance);
+		if (at >= 0) {
+			this._children.splice(at, 1);
+		}
+		row.instance.dispose();
+		slot.node.remove(row.wrapper);
+		row.wrapper.destroyRecursively?.();
+	}
+
+	_clearAppliedOut(slot) {
+		if (!slot.applied) {
+			return;
+		}
+		for (const key of Array.from(slot.applied.keys())) {
+			this._destroyAppliedRow(slot, key);
+		}
+		slot.applied = null;
+		slot.order = null;
+	}
+
 	_renderEach(slot) {
 		const data = this._scopedData(slot);
 		const collection = resolveBindingValue(data, slot.binding, true, this);
@@ -652,7 +756,7 @@ class TUIInstance {
 		}
 		for (let i = 0; i < created.when.length; i++) {
 			const s = created.when[i];
-			s.node.visible = !!s.predicate(this, this._scopedData(s));
+			s.node.visible = !!s.predicate(this, unwrapData(this._scopedData(s)));
 		}
 		for (let i = 0; i < created.each.length; i++) {
 			this._renderEach(created.each[i]);
@@ -771,7 +875,7 @@ class TUIInstance {
 
 	_attachCapture(slot) {
 		const handler = (value) => {
-			const current = (this.data || {})[slot.key];
+			const current = this.data?.[slot.key];
 			if (isReactive(current)) {
 				current.set(value);
 				return;
@@ -864,7 +968,7 @@ class TUIInstance {
 		}
 		for (let i = 0; i < this._when.length; i++) {
 			const slot = this._when[i];
-			slot.node.visible = !!slot.predicate(this, this._scopedData(slot));
+			slot.node.visible = !!slot.predicate(this, unwrapData(this._scopedData(slot)));
 		}
 		const focuses = [];
 		for (let i = 0; i < this._out.length; i++) {
@@ -873,7 +977,22 @@ class TUIInstance {
 				focuses.push(slot);
 				continue;
 			}
-			this._applyOut(slot, this._resolveOut(slot));
+			const value = this._resolveOut(slot);
+			const isApplied =
+				Array.isArray(value) &&
+				(value.length > 0
+					? value.every((item) => isAppliedTemplate(item))
+					: slot.isApplied === true);
+			if (isApplied) {
+				slot.isApplied = true;
+				this._renderAppliedOut(slot, value);
+			} else {
+				if (slot.isApplied) {
+					this._clearAppliedOut(slot);
+					slot.isApplied = false;
+				}
+				this._applyOut(slot, value);
+			}
 		}
 		for (let i = 0; i < focuses.length; i++) {
 			const slot = focuses[i];
@@ -889,7 +1008,7 @@ class TUIInstance {
 		}
 		for (let i = 0; i < this._inout.length; i++) {
 			const slot = this._inout[i];
-			const next = unwrap((this.data || {})[slot.key]);
+			const next = unwrap(this.data?.[slot.key]);
 			const value = next === undefined || next === null ? "" : `${next}`;
 			if (slot.node[slot.prop] !== value) {
 				slot.node[slot.prop] = value;
@@ -1004,7 +1123,8 @@ class TUIInstance {
 		let first = true;
 		while (current) {
 			if (!first || includeSelf) {
-				const payload = data === undefined ? current.data || {} : data;
+				const payload =
+					data === undefined ? unwrapData(current.data || {}) : unwrapData(data);
 				if (current._runtimeSubs) {
 					const list = current._runtimeSubs.get(name);
 					if (list) {
@@ -1043,7 +1163,7 @@ class TUIInstance {
 		this._disposed = true;
 		this._queued = false;
 		if (typeof this.template.cleanup === "function") {
-			this.template.cleanup(this, this.data || {});
+			this.template.cleanup(this, unwrapData(this.data || {}));
 		}
 		for (let i = 0; i < this._each.length; i++) {
 			const slot = this._each[i];

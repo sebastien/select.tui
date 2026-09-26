@@ -33,16 +33,16 @@ const Counter = ui(
 		count: cell(0),
 	}))
 	.does({
-		label: (_self, { count }) => `Count  ${count.value}`,
+		label: (_self, { count }) => `Count  ${count}`,
 		keys: (self, { count }, key) => {
 			if (key.name === "q") {
 				self.quit();
 				return;
 			}
 			if (key.name === "left") {
-				count.set(count.value - 1);
+				self.update({ count: count - 1 });
 			} else if (key.name === "right") {
-				count.set(count.value + 1);
+				self.update({ count: count + 1 });
 			}
 		},
 	});

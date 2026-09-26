@@ -1,0 +1,4 @@
+<box flexDirection="column">
+	<text out="title"></text>
+	<text out="body"></text>
+</box>

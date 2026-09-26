@@ -78,6 +78,11 @@ function extend(components) {
 			delete catalogue[name];
 			continue;
 		}
+		if (value.isComponentDefinition) {
+			throw new Error(
+				`extend(): <${name}> is an unbound ui.component(...) definition; bind it with .using(...) before registering`,
+			);
+		}
 		if (value.isTemplate) {
 			catalogue[name] = { Component: value };
 		} else {

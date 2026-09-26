@@ -46,11 +46,11 @@ const Counter = ui(`
 `)
   .init(() => ({ count: cell(0) }))
   .does({
-    label: (_self, { count }) => `Count  ${count.value}`,
+    label: (_self, { count }) => `Count  ${count}`,
     keys: (self, { count }, key) => {
       if (key.name === "q") return self.quit();
-      if (key.name === "left") count.set(count.value - 1);
-      else if (key.name === "right") count.set(count.value + 1);
+      if (key.name === "left") self.update({ count: count - 1 });
+      else if (key.name === "right") self.update({ count: count + 1 });
     },
   });
 
@@ -74,10 +74,66 @@ is a component factory with a chainable descriptor:
 - `.does({ handler: (self, data, event) => result })` — behaviors used by
   `out`/`when`/`on:` bindings. Returning a plain object updates the data.
 - `.cleanup((self, data) => …)` — called once on dispose.
+- `.map(data, processor?, key?)` — map a collection to keyed child instances,
+  rendered by binding the result to an `out` slot. `processor(value, index)`
+  builds each row's data; `key(value, index)` (or a path string) sets its
+  stable `$key`. A focused port of select.js's `Component.map`: it always
+  returns a flat array, so Map/Set/object inputs are flattened to their values
+  in iteration order. Without a `processor`, each item is wrapped as `{ $:
+  item, $key }` (`{ $value: item, $key }` for array items).
 - `.new(parent, options)` / `.apply(data)` — low-level constructors.
 
 `ui.markup`, `ui.format`, `ui.unformat`, `ui.formats`, `ui.resolveFormat` expose
 the hyperscript factories and the select.js format registry.
+
+### `ui.component(name)`
+
+Creates a **logic-only** definition. It is not renderable until bound to a
+presentation with `.using(source)`:
+
+```js
+const Badge = ui.component("Badge")
+  .init(() => ({ label: cell("hi") }))
+  .does({ label: (_self, { label }) => label });
+
+const Pill = Badge.using(`<box><text out="label"></text></box>`);
+const Card = Badge.using(`<box border><text out="label"></text></box>`);
+```
+
+`.init/.does/.cleanup/.using/.map` are available; calling an unbound definition
+throws. Both `ui(source)` components and `ui.component(name)` definitions also
+expose `.using(source)` for rebinding. The exported guards
+`isTemplateComponent(value)`, `isComponentDefinition(value)` and
+`isAppliedTemplate(value)` distinguish the three kinds at runtime.
+
+### `Component.map(data, processor?, key?)`
+
+Returns an array of keyed `{ template, data }` wrappers. Bind it to an `out`
+slot to render each wrapper as a child instance (reconciled by `$key`):
+
+```js
+const Row = ui(`<box><text out="label"></text></box>`).does({
+  label: (_self, data) => data.item,
+});
+const List = ui(`<box out="rows"></box>`).does({
+  rows: (_self, data) =>
+    Row.map(data.items, (item, index) => ({ item, index }), (item) => item),
+});
+```
+
+### `ui.load(source)`
+
+Fetches, parses and caches an external template URL/path (inline markup is
+parsed directly and not fetched). It must be awaited **before** the same
+source is passed to `ui(source)` or `.using(source)`: a resource-like source
+that was never loaded throws rather than being misread as markup. Returns the
+parsed AST.
+
+### Behavior data
+
+Behaviors receive **unwrapped plain values** (top-level cells are unwrapped),
+matching select.js. Use `self.data` when you need the underlying cell, and
+`self.update({ key: value })` to write back to one.
 
 ### `render(Component, rendererOrConfig?)`
 
@@ -94,7 +150,8 @@ setup augmented with `instance`. Use `setup.renderOnce()` and
 ### `extend({ tag: Class | { Class, contentProp } | uiComponent })`
 
 Registers additional tags. Passing `null` removes a tag. Built-in tags: `box`,
-`text`, `input`, `scrollbox`.
+`text`, `input`, `scrollbox`. `getCatalogue()` returns the live tag registry
+for advanced introspection.
 
 ### `markup`
 

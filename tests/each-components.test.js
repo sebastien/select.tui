@@ -104,8 +104,8 @@ describe("component tags", () => {
 		.init((self, data) => ({ ...data, extra: cell("!") }))
 		.does({
 			line: (_self, data) => {
-				const who = data.who?.isReactive ? data.who.value : data.who
-				return `hi ${who ?? "?"}${data.extra.value}`
+				const who = data.who;
+				return `hi ${who ?? "?"}${data.extra}`;
 			},
 		})
 

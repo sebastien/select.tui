@@ -14,9 +14,9 @@ const Panel = ui(`
 		title: cell("Hello"),
 	}))
 	.does({
-		hint: (_self, { hint }) => hint.value,
-		showHint: (_self, { showHint }) => showHint.value,
-		title: (_self, { title }) => title.value,
+		hint: (_self, { hint }) => hint,
+		showHint: (_self, { showHint }) => showHint,
+		title: (_self, { title }) => title,
 	});
 
 describe("slots", () => {

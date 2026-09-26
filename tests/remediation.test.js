@@ -86,7 +86,7 @@ describe("keypress routing", () => {
 				rightKeys: () => {
 					right += 1;
 				},
-				wantFocus: (_self, { wantFocus }) => wantFocus.value,
+				wantFocus: (_self, { wantFocus }) => wantFocus,
 			});
 		const setup = await testRender(App, { width: 20, height: 5 });
 		try {
