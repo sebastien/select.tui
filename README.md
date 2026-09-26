@@ -161,8 +161,7 @@ Passing a plain object as the first argument treats it as attributes.
 ## Binding language
 
 Attributes on a node drive binding and reactivity. `source` is a select.js
-binding source (a key, a dotted path, `item`/`index`/`key` inside `each`, or a
-behavior name).
+binding source (a key, a dotted path, or a behavior name).
 
 | Attribute | Direction | Meaning |
 | --- | --- | --- |
@@ -174,11 +173,9 @@ behavior name).
 | `inout` / `inout:prop` | both | Two-way binding through an `input` event. |
 | `on:event="handler"` | node → behavior | Calls a behavior; `@path` assigns, `!Event` publishes. |
 | `ref="name"` | — | Stores the created node on `instance.ref`. |
-| `each="source"` | — | Repeats the element (or its children) with keyed reconciliation. |
-| `each:key="path"` | — | Stable key per item (default `name`/`id`/`key`, then index). |
 
-Inside `each`, the row scope exposes `item`, `index`, `key` and `$key`.
-`on:` handlers, `out`, `when` and `in:` all resolve against the row scope.
+List rendering uses `Component.map(collection, processor?, key?)` bound to an
+`out` slot; each returned applied template renders as a keyed child instance.
 
 `out` supports the select.js processor syntax (`out="name|upper"`) and string
 templates (`out="Hello ${name}"`), and comparisons (`out="count>0"`).
@@ -193,5 +190,5 @@ handlers run.
 bun test tests
 ```
 
-Tests live in `tests/` and cover parsing, markup, slots, `each`, component tags
-and the host lifecycle.
+Tests live in `tests/` and cover parsing, markup, slots, mapped lists, component
+tags and the host lifecycle.

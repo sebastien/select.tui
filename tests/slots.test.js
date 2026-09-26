@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { cell } from "select/state/cells";
+import { cell, unwrap } from "select/state/cells";
 import { testRender, ui } from "../src/js/select/tui/index.js";
 
 const Panel = ui(`
@@ -14,9 +14,9 @@ const Panel = ui(`
 		title: cell("Hello"),
 	}))
 	.does({
-		hint: (_self, { hint }) => hint,
-		showHint: (_self, { showHint }) => showHint,
-		title: (_self, { title }) => title,
+		hint: (_self, { hint }) => unwrap(hint),
+		showHint: (_self, { showHint }) => unwrap(showHint),
+		title: (_self, { title }) => unwrap(title),
 	});
 
 describe("slots", () => {

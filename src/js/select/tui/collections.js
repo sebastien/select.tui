@@ -5,8 +5,7 @@
 
 // Module: select/tui/collections
 // Shared helpers for normalizing collections and resolving values/paths. Used
-// by both `each` reconciliation (instance.js) and `Component.map`
-// (applied.js), so the two list mechanisms agree on collection handling.
+// by `Component.map` (applied.js) to map arrays, Maps, Sets and plain objects.
 
 import { unwrap } from "select/state/cells";
 import { isReactive } from "select/utils/values.js";
@@ -47,17 +46,6 @@ function normalizeCollection(data) {
 	return entries;
 }
 
-// Function: resolveItemPath
-// Resolves a precompiled path array (e.g. `each-key`) against `item`.
-function resolveItemPath(item, path) {
-	let cursor = item;
-	for (let i = 0; i < path.length; i++) {
-		if (cursor === null || cursor === undefined) return undefined;
-		cursor = cursor[path[i]];
-	}
-	return cursor;
-}
-
 // Function: resolvePath
 // Resolves a dotted path string (e.g. `"user.id"` or `".id"`) against `value`.
 function resolvePath(value, path) {
@@ -71,6 +59,6 @@ function resolvePath(value, path) {
 	return cursor;
 }
 
-export { normalizeCollection, resolveItemPath, resolvePath, resolveReactive };
+export { normalizeCollection, resolvePath, resolveReactive };
 
 // EOF

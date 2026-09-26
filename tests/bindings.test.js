@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from "bun:test";
-import { cell } from "select/state/cells";
+import { cell, unwrap } from "select/state/cells";
 import { testRender, ui } from "../src/js/select/tui/index.js";
 
 ui.format("upper", (value) => `${value ?? ""}`.toUpperCase());
@@ -58,10 +58,10 @@ describe("binding language", () => {
 				n: cell(0),
 			}))
 			.does({
-				Bump: (self, { n }) => {
-					self.update({ n: n + 1 });
-				},
-				label: (_self, { n }) => `n=${n}`,
+				label: (_self, { n }) => `n=${unwrap(n)}`,
+			})
+			.sub("Bump", (self, data) => {
+				self.update({ n: unwrap(data.n) + 1 });
 			});
 		const setup = await testRender(App, { width: 16, height: 4 });
 		try {

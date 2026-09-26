@@ -21,6 +21,7 @@ function createDefinition(name = null) {
 	const definition = {
 		name,
 		behavior: {},
+		subs: undefined,
 		cleanup: null,
 		initializer: null,
 	};
@@ -43,6 +44,27 @@ function createDefinition(name = null) {
 		definition.behavior = Object.assign(definition.behavior, behavior);
 		return unbound;
 	};
+	// Subscribes to events published by child components; same contract as
+	// select.js `template.sub(event, handler)` / `.sub({ Event: handler })`.
+	unbound.sub = (event, handler = undefined) => {
+		if (typeof event === "string") {
+			if (!handler) {
+				return unbound;
+			}
+			definition.subs = definition.subs ?? new Map();
+			if (definition.subs.has(event)) {
+				definition.subs.get(event).push(handler);
+			} else {
+				definition.subs.set(event, [handler]);
+			}
+		} else {
+			for (const name in event) {
+				unbound.sub(name, event[name]);
+			}
+		}
+		return unbound;
+	};
+	unbound.on = unbound.sub;
 	unbound.cleanup = (handler) => {
 		definition.cleanup = handler;
 		return unbound;

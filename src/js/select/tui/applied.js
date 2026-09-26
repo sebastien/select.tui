@@ -14,7 +14,7 @@
 // - *map cache*: per-component `Map` keyed by `$key`, keeping wrapper identity
 //   stable across renders.
 
-import { normalizeCollection, resolvePath } from "./collections.js";
+import { normalizeCollection, resolvePath, resolveReactive } from "./collections.js";
 
 // Class: AppliedTemplate
 // A keyed `{ template, data }` wrapper returned by `Component.map`. It is a
@@ -63,10 +63,10 @@ function appliedDataEquals(a, b) {
 
 // Function: mapTemplate
 // Maps a collection through a component into keyed applied-template wrappers.
-// A focused port of select.js `Component.map(data, processor?, key?)`: it
-// always returns a flat array (not a Map/Set/object-shaped container) because
-// the result is consumed as a list by an `out` slot.
+// A port of select.js `Component.map(data, processor?, key?)` that preserves the
+// input container shape (array, Map, Set or plain object), matching select.js.
 function mapTemplate(component, data, processor, key) {
+	const resolved = resolveReactive(data);
 	const entries = normalizeCollection(data);
 	const keyFn =
 		key == null
@@ -75,7 +75,21 @@ function mapTemplate(component, data, processor, key) {
 				? key
 				: (value) => resolvePath(value, key);
 	const cache = component._mapCache ?? (component._mapCache = new Map());
-	const result = new Array(entries.length);
+	let result;
+	if (resolved instanceof Map) {
+		result = new Map();
+	} else if (resolved instanceof Set) {
+		result = new Set();
+	} else if (
+		!Array.isArray(resolved) &&
+		resolved !== null &&
+		typeof resolved === "object"
+	) {
+		result = {};
+	} else {
+		result = new Array(entries.length);
+	}
+	let arrayIndex = 0;
 	const used = new Set();
 	for (let i = 0; i < entries.length; i++) {
 		const entry = entries[i];
@@ -90,7 +104,7 @@ function mapTemplate(component, data, processor, key) {
 			k = item.$key;
 		}
 		// Deduplicate keys so two items mapping to the same `$key` render as
-		// distinct rows instead of silently collapsing, matching `each`.
+		// distinct rows instead of silently collapsing.
 		if (used.has(k)) {
 			let n = 0;
 			let fallback = `#${i}`;
@@ -114,7 +128,15 @@ function mapTemplate(component, data, processor, key) {
 			at = new AppliedTemplate(component, item);
 			cache.set(k, at);
 		}
-		result[i] = at;
+		if (result instanceof Map) {
+			result.set(entry.mapKey, at);
+		} else if (result instanceof Set) {
+			result.add(at);
+		} else if (Array.isArray(result)) {
+			result[arrayIndex++] = at;
+		} else {
+			result[entry.mapKey] = at;
+		}
 	}
 	return result;
 }

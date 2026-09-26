@@ -49,6 +49,19 @@ function applyDefinition(definition, source) {
 	if (definition.behavior) {
 		template.behavior = Object.assign({}, template.behavior, definition.behavior);
 	}
+	if (definition.subs) {
+		template.subs = template.subs ?? new Map();
+		for (const [event, handlers] of definition.subs) {
+			const existing = template.subs.get(event);
+			if (existing) {
+				for (let i = 0; i < handlers.length; i++) {
+					existing.push(handlers[i]);
+				}
+			} else {
+				template.subs.set(event, handlers.slice());
+			}
+		}
+	}
 	if (definition.cleanup) {
 		template.cleanup = definition.cleanup;
 	}
@@ -56,13 +69,14 @@ function applyDefinition(definition, source) {
 }
 
 // Function: rebind
-// Returns a new component that reuses `template`'s behavior/init/cleanup on a
-// different presentation.
+// Returns a new component that reuses `template`'s behavior/init/cleanup/subs
+// on a different presentation.
 function rebind(template, source) {
 	return applyDefinition(
 		{
 			initializer: template.initializer,
 			behavior: template.behavior,
+			subs: template.subs,
 			cleanup: template.cleanup,
 		},
 		source,
@@ -73,6 +87,7 @@ function ui(source) {
 	const template = {
 		ast: astFor(source),
 		behavior: {},
+		subs: undefined,
 		cleanup: null,
 		initializer: null,
 	};
@@ -91,6 +106,28 @@ function ui(source) {
 		template.behavior = Object.assign(template.behavior, behavior);
 		return Component;
 	};
+	// Subscribes to events published by child components. `event` is an event
+	// name, or an object mapping names to handlers. Handler signature matches
+	// select.js: `(instance, data, event)`; the payload is `event.data`.
+	Component.sub = (event, handler = undefined) => {
+		if (typeof event === "string") {
+			if (!handler) {
+				return Component;
+			}
+			template.subs = template.subs ?? new Map();
+			if (template.subs.has(event)) {
+				template.subs.get(event).push(handler);
+			} else {
+				template.subs.set(event, [handler]);
+			}
+		} else {
+			for (const name in event) {
+				Component.sub(name, event[name]);
+			}
+		}
+		return Component;
+	};
+	Component.on = Component.sub;
 	Component.cleanup = (handler) => {
 		template.cleanup = handler;
 		return Component;

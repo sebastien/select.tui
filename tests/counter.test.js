@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { cell } from "select/state/cells";
+import { cell, unwrap } from "select/state/cells";
 import { testRender, ui } from "../src/js/select/tui/index.js";
 
 const Counter = ui(`
@@ -15,12 +15,13 @@ const Counter = ui(`
 		count: cell(0),
 	}))
 	.does({
-		label: (_self, { count }) => `Count  ${count}`,
+		label: (_self, { count }) => `Count  ${unwrap(count)}`,
 		keys: (self, { count }, key) => {
+			const value = unwrap(count);
 			if (key.name === "left") {
-				self.update({ count: count - 1 });
+				self.update({ count: value - 1 });
 			} else if (key.name === "right") {
-				self.update({ count: count + 1 });
+				self.update({ count: value + 1 });
 			}
 		},
 	});

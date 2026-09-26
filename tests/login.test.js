@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { cell } from "select/state/cells";
+import { cell, unwrap } from "select/state/cells";
 import { testRender, ui } from "../src/js/select/tui/index.js";
 
 const Login = ui(`
@@ -23,21 +23,23 @@ const Login = ui(`
 		username: cell(""),
 	}))
 	.does({
-		focusedPass: (_self, { focused }) => focused === "pass",
-		focusedUser: (_self, { focused }) => focused === "user",
-		status: (_self, { status }) => `${status ?? "idle"}`.toUpperCase(),
+		focusedPass: (_self, { focused }) => unwrap(focused) === "pass",
+		focusedUser: (_self, { focused }) => unwrap(focused) === "user",
+		status: (_self, { status }) => `${unwrap(status) ?? "idle"}`.toUpperCase(),
 		statusFg: (_self, { status }) =>
-			status === "success"
+			unwrap(status) === "success"
 				? "green"
-				: status === "error"
+				: unwrap(status) === "error"
 					? "red"
 					: "#999",
-		submit: (self, { username, password }) => {
-			self.update({
-				status:
-					username === "admin" && password === "secret" ? "success" : "error",
-			});
-		},
+	})
+	.sub("submit", (self, data) => {
+		const username = unwrap(data.username);
+		const password = unwrap(data.password);
+		self.update({
+			status:
+				username === "admin" && password === "secret" ? "success" : "error",
+		});
 	});
 
 describe("login", () => {

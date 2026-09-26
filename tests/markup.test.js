@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { cell } from "select/state/cells";
+import { cell, unwrap } from "select/state/cells";
 import { markup } from "../src/js/select/tui/markup.js";
 import { testRender, ui } from "../src/js/select/tui/index.js";
 
@@ -40,10 +40,11 @@ describe("markup", () => {
 		)
 			.init(() => ({ count: cell(0) }))
 			.does({
-				label: (_self, { count }) => `Count  ${count}`,
+				label: (_self, { count }) => `Count  ${unwrap(count)}`,
 				keys: (self, { count }, key) => {
+					const value = unwrap(count);
 					if (key.name === "right") {
-						self.update({ count: count + 1 });
+						self.update({ count: value + 1 });
 					}
 				},
 			});

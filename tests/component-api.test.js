@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { cell } from "select/state/cells";
+import { cell, unwrap } from "select/state/cells";
 import {
 	extend,
 	isAppliedTemplate,
@@ -180,7 +180,7 @@ describe("Component.map", () => {
 			.init(() => ({ useA: cell(true), items: ["k"] }))
 			.does({
 				rows: (_self, data) =>
-					(data.useA ? RowA : RowB).map(
+					(unwrap(data.useA) ? RowA : RowB).map(
 						data.items,
 						(item) => ({ item }),
 						() => "k",
@@ -231,21 +231,60 @@ describe("Component.map", () => {
 			setup.renderer.destroy();
 		}
 	});
+
+	test("preserves the input collection shape", () => {
+		const Bound = ui(`<box><text out="x"></text></box>`);
+		expect(Array.isArray(Bound.map(["a"]))).toBe(true);
+		expect(Bound.map(new Map([["a", 1]])) instanceof Map).toBe(true);
+		expect(Bound.map(new Set(["a"])) instanceof Set).toBe(true);
+		const shaped = Bound.map({ a: 1 });
+		expect(Array.isArray(shaped)).toBe(false);
+		expect(Object.getPrototypeOf(shaped)).toBe(Object.prototype);
+	});
+
+	test("renders a Map collection through an out slot", async () => {
+		const MapRow = ui(`<box height="1"><text out="label"></text></box>`).does({
+			label: (_self, data) => data.item,
+		});
+		const List = ui(`<box flexDirection="column" out="rows"></box>`)
+			.init(() => ({
+				items: cell(
+					new Map([
+						["a", "alpha"],
+						["b", "beta"],
+					]),
+				),
+			}))
+			.does({
+				rows: (_self, data) =>
+					MapRow.map(data.items, (item) => ({ item }), (item) => item),
+			});
+		const setup = await testRender(List, { width: 20, height: 5 });
+		try {
+			await setup.renderOnce();
+			const frame = setup.captureCharFrame();
+			expect(frame).toContain("alpha");
+			expect(frame).toContain("beta");
+		} finally {
+			setup.renderer.destroy();
+		}
+	});
 });
 
 describe("behavior data contract", () => {
-	test("in: behavior sources receive unwrapped values", async () => {
+	test("in: behavior sources receive raw cells", async () => {
 		let seen = null;
 		const Child = ui(`<box><text out="label"></text></box>`).does({
-			label: (_self, { passed }) => String(passed),
+			label: (_self, { passed }) => String(unwrap(passed)),
 		});
 		extend({ auditchild: Child });
 		const Parent = ui(
 			`<box><auditchild in:passed="value" width="16" height="2"></auditchild></box>`,
 		).does({
 			value: (_self, { count }) => {
-				seen = count;
-				return count;
+				const value = unwrap(count);
+				seen = value;
+				return value;
 			},
 		});
 		const setup = await testRender(Parent.init(() => ({ count: cell(5) })), {
@@ -261,13 +300,13 @@ describe("behavior data contract", () => {
 		}
 	});
 
-	test("cleanup receives unwrapped values", async () => {
+	test("cleanup receives raw cells", async () => {
 		let seen = null;
 		const App = ui(`<box><text out="t"></text></box>`)
 			.init(() => ({ count: cell(7) }))
-			.does({ t: (_self, { count }) => `${count}` })
+			.does({ t: (_self, { count }) => `${unwrap(count)}` })
 			.cleanup((_self, data) => {
-				seen = data.count;
+				seen = unwrap(data.count);
 			});
 		const setup = await testRender(App, { width: 8, height: 2 });
 		setup.instance.dispose();
@@ -284,13 +323,13 @@ describe("behavior data contract", () => {
 		});
 		let received = null;
 		const setup = await testRender(App, { width: 8, height: 2 });
-		setup.instance.on("payload", (_self, payload) => {
-			received = payload;
+		setup.instance.on("payload", (_self, _data, event) => {
+			received = event.data;
 		});
 		setup.instance._dispatch("fire", null, undefined);
 		setup.renderer.destroy();
 		expect(Array.isArray(received)).toBe(true);
-		expect(received).toEqual([1, 2]);
+		expect(received.map((value) => unwrap(value))).toEqual([1, 2]);
 	});
 
 	test("ui(url) without ui.load throws instead of parsing as markup", () => {
