@@ -10,8 +10,8 @@
 // renderables. `out-replace` is an alias of `out`: replacing the target node
 // isn't meaningful for a TUI node, so both update in place.
 
-import { TemplateParser } from "select/ui/bindings.js";
-import { inferWhenKeys } from "select/ui/eval.js";
+import { TemplateParser } from "@ssebastien/select/ui/bindings.js";
+import { inferWhenKeys } from "@ssebastien/select/ui/eval.js";
 
 // Function: isWsText
 // True for whitespace-only text AST nodes skipped during instantiation.

@@ -62,10 +62,21 @@ const NUMBER_ATTRS = new Set([
 	"zIndex",
 ]);
 
+// Function: hideScrollBars
+// select.tui keeps the cursor on screen itself, so a scrollbox's scrollbar
+// chrome is noise. Hide both bars while leaving them in the tree, so destroy
+// and layout stay consistent. Applied to every scrollbox by `configure`.
+function hideScrollBars(node) {
+	for (const bar of [node.verticalScrollBar, node.horizontalScrollBar]) {
+		bar?.resetVisibilityControl?.();
+		if (bar) bar.visible = false;
+	}
+}
+
 const TAGS = {
 	box: { Class: BoxRenderable },
 	input: { Class: InputRenderable, contentProp: "value" },
-	scrollbox: { Class: ScrollBoxRenderable },
+	scrollbox: { Class: ScrollBoxRenderable, configure: hideScrollBars },
 	text: { Class: TextRenderable, contentProp: "content" },
 };
 

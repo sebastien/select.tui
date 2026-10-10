@@ -17,9 +17,9 @@
 // rather than the template object; duplicate keys render as distinct rows
 // (`#index` fallback) instead of collapsing.
 
-import { unwrap } from "select/state/cells";
-import { remap as remapCollection } from "select/utils/transform.js";
-import { isReactive } from "select/utils/values.js";
+import { unwrap } from "@ssebastien/select/state/cells";
+import { remap as remapCollection } from "@ssebastien/select/utils/transform.js";
+import { isReactive } from "@ssebastien/select/utils/values.js";
 
 // Function: resolveKeyPath
 // Resolves a dotted key path (e.g. `"user.id"` or `".id"`) against `value`.

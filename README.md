@@ -22,18 +22,18 @@ logic, but a presentation in HTML and one in TUI.
 ## Install
 
 ```sh
-bun add select.tui @opentui/core
+bun add @ssebastien/select-tui @opentui/core @ssebastien/select
 ```
 
-`select.tui` depends on `select` (the select.js runtime). During development the
-dependency is a symlink at `deps/selectjs`; the pinned revision lives in
-`.gitdeps`.
+`@ssebastien/select-tui` depends on `@ssebastien/select` (the select.js runtime). During
+development this dependency is a symlink at `deps/selectjs`; the pinned revision
+lives in `.gitdeps`.
 
 ## Quick start
 
 ```js
-import { cell } from "select/state/cells";
-import { render, ui } from "select.tui";
+import { cell } from "@ssebastien/select/state/cells";
+import { render, ui } from "@ssebastien/select-tui";
 
 const Counter = ui(`
   <box width="42" height="9" alignItems="center" justifyContent="center" on:keypress="keys">
@@ -59,6 +59,9 @@ await render(Counter);
 
 Run the bundled examples with `bun run example:counter`, `example:counter-markup`
 or `example:login`.
+
+Run `make release` to check and test the package, publish it to npm, then tag and
+push the release. Bump `package.json`'s version before each release.
 
 ## API
 

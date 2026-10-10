@@ -1,4 +1,4 @@
-import { cell } from "select/state/cells";
+import { cell } from "@ssebastien/select/state/cells";
 import { render, ui } from "../src/js/select/tui/index.js";
 
 const { box, text } = ui.markup;

@@ -1,5 +1,5 @@
 {
-	"name": "select.tui",
+	"name": "@ssebastien/select-tui",
 	"version": "0.1.0",
 	"description": "Select.js templates for OpenTUI",
 	"type": "module",
@@ -10,7 +10,7 @@
 		"./package.json": "./package.json"
 	},
 	"files": [
-		"src/",
+		"src/js/",
 		"README.md",
 		"LICENSE.md"
 	],
@@ -38,6 +38,6 @@
 	},
 	"dependencies": {
 		"@opentui/core": "^0.5.9",
-		"select": "./deps/selectjs"
+		"@ssebastien/select": "^1.2.1"
 	}
 }

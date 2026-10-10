@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { cell, unwrap } from "select/state/cells";
+import { cell, unwrap } from "@ssebastien/select/state/cells";
 import {
 	extend,
 	getTUIInstance,

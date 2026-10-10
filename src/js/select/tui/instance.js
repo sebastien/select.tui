@@ -57,6 +57,7 @@ import {
 	resolveInValue,
 	resolveOut,
 	syncChildInputs,
+	tryDirectOutUpdate,
 } from "./render.js";
 
 // Class: TUIInstance
@@ -164,8 +165,12 @@ class TUIInstance {
 		unbindInstance(this);
 	}
 
-	_render() {
-		renderInstance(this);
+	_render(changedKeys = null) {
+		renderInstance(this, changedKeys);
+	}
+
+	_tryDirectOutUpdate(key, value) {
+		return tryDirectOutUpdate(this, key, value);
 	}
 
 	set(data) {

@@ -22,7 +22,7 @@
 //   `singleton`, `lexicalTemplates`/`localTemplates`, `<slot>` content slots,
 //   `<style>` extraction, `Dynamic`/`lazy`/`register`/`resolve` helpers.
 
-import { FORMATS, format } from "select/features/formats.js";
+import { FORMATS, format } from "@ssebastien/select/features/formats.js";
 import { applyTemplate, mapTemplate } from "./applied.js";
 import {
 	cloneDescriptorState,

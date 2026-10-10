@@ -11,9 +11,9 @@
 // TUI delta: `keypress` routing to the focused subtree, `click` via
 // `onMouseDown`, `in:`/`inout:` capture through the `input` event.
 
-import { UIEvent } from "select/ui/components/model.js";
-import { resolveBindingValue, writeDataPath } from "select/ui/eval.js";
-import { isReactive } from "select/utils/values.js";
+import { UIEvent } from "@ssebastien/select/ui/components/model.js";
+import { resolveBindingValue, writeDataPath } from "@ssebastien/select/ui/eval.js";
+import { isReactive } from "@ssebastien/select/utils/values.js";
 import { scheduleRender } from "./reactive.js";
 import { isPlainObject } from "./slots.js";
 
